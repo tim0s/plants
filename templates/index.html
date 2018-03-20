@@ -16,11 +16,11 @@
 				{% for light in lights %}
         		<tr>
         			<td>
-						<button type=\"submit\" name=\"pin\" value=\""+str(l)+"\">
+					<button type=submit name=pin value={{light.pin}}>
 						{% if light.state %}
-            				<img height="100" src="{{ url_for('static', filename="light_on.png") }}">
-						{% else %}
             				<img height="100" src="{{ url_for('static', filename="light_off.png") }}">
+						{% else %}
+            				<img height="100" src="{{ url_for('static', filename="light_on.png") }}">
 						{% endif %}
         				</button>
 					</td>

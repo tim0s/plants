@@ -1,12 +1,13 @@
-__emulation_mode__ = True
+__emulation_mode__ = False
 
+import re
 import time
 import sqlite3
 if not __emulation_mode__: import RPi.GPIO as GPIO
 from flask import Flask, g, request, url_for, render_template
 
 
-lights = [2,3,4,17]
+lights = [2,3,17,27]
 on_times = ["18:00", "18:00", "18:00", "18:00"]
 off_times = ["10:00", "10:00", "10:00", "10:00"]
 
@@ -37,7 +38,14 @@ def get_temperature():
     if __emulation_mode__:
         return 24.7
     else:
-        raise NotImplementedError("Temperature reading not implemented yet.")
+        f = open("/sys/bus/w1/devices/28-0417c1dab8ff/w1_slave", "r")
+        contents = f.read()
+        f.close()
+        m = re.search("t=(\d+)", contents)
+        if m is not None:
+            result = m.group(1)
+            return int(result)/1000
+        
 
 def get_time():
     return time.strftime("HH:MM", time.gmtime())
@@ -64,7 +72,7 @@ def get_lights_info():
         d = {}
         d['index'] = i
         d['pin'] = l
-        d['state'] = i%2
+        d['state'] = get_pin_state(l)
         d['on_time'] = "18:00"
         d['off_time'] = "12:00"
         light_info.append(d)
@@ -77,6 +85,8 @@ def mainpage(name=None):
 
 @app.route('/light', methods=['GET', 'POST'])
 def light():
+    for k in request.form.keys():
+        print("k: "+ str(k) + "v: "+str(request.form[k]))
     if 'pin' in request.form:
         pin = int(request.form['pin'])
         toggle_pin(pin)
