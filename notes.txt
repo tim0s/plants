@@ -1,2 +1,0 @@
-cat /sys/bus/w1/devices/28-0417c1dab8ff/w1_slave
-fan pins = 20,21

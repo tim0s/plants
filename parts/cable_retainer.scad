@@ -1,7 +1,7 @@
 width = 12;
 length = 70;
 height = 8;
-cable_diameter = 5.2;
+cable_diameter = 5.4;
 hole_diameter = 3;
 cable_positions = [-23, -15, -7, 7, 15, 23];
 
