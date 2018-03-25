@@ -1,0 +1,19 @@
+#statusbox {
+	background-color: black;
+	height: 100px;
+	width: 100%;
+}
+
+.statusbox_group {
+	float: left;
+	padding: 10px;
+}
+
+.statusbox_elem {
+	float: left;
+	color: white;
+}
+
+.statusbox_elem img {
+	height:65px;
+}

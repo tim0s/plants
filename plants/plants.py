@@ -1,14 +1,19 @@
 __emulation_mode__ = True
 
+import os
 import re
 import time
+import signal
 import sqlite3
-if not __emulation_mode__: import RPi.GPIO as GPIO
-from flask import Flask, g, request, url_for, render_template
+import logging
 import datetime
 import time, threading
+if not __emulation_mode__: import RPi.GPIO as GPIO
+from flask import Flask, g, request, url_for, render_template
 
 app = Flask(__name__)
+worker_thread = None
+logging.basicConfig(level=10)
 DATABASE = './database.db'
 
 
@@ -97,51 +102,106 @@ def cleanup_pi():
 
 ############ END HW INTERFACE ##################
 
-def get_lights_info():
-    light_info = []
-    for i,l in enumerate(lights):
-        d = {}
-        d['index'] = i
-        d['pin'] = l
-        d['state'] = get_pin_state(l)
-        d['on_time'] = "18:00"
-        d['off_time'] = "12:00"
-        light_info.append(d)
-    return light_info
+
+def build_current_state():
+    state = {
+        "lights"       : build_lights_state(),
+        "fans"         : build_fans_state(),
+        "humidities"   : build_humidity_state(),
+        "temperatures" : build_temperature_state(),
+    }
+    return state
+
+def build_lights_state():
+    lights_state = []
+    for light in query_db('select * from lights'):
+        light_state = {
+            "id"      : light['id'],
+            "on"      : bool(get_pin_state(light['pin'])) and \
+                        bool(light['high_active']),
+            "pin"     : light['pin'],
+            "auto_on" : light['auto_on'],
+            "auto_off": light['auto_off']
+        }
+        lights_state.append(light_state)
+    return lights_state
+
+def build_fans_state():
+    fans_state = []
+    for fan in query_db('select * from fans'):
+        fan_state = {
+            "id"      : fan['id'],
+            "on"      : bool(get_pin_state(fan['pin'])),
+            "pin"     : fan['pin']
+        }
+        fans_state.append(fan_state)
+    return fans_state
+
+def build_temperature_state():
+    temps_state = []
+    for temp in query_db('select * from temperature_sensors'):
+        temp_state = {
+            "id"    : temp['id'],
+            "fpath" : temp['fpath'],
+            "temp"  : get_last_temp_from_db()
+        }
+        temps_state.append(temp_state)
+    return temps_state
+
+
+def build_humidity_state():
+    humiditys_state = []
+    for hum in query_db('select * from humidity_sensors'):
+        hum_state = {
+            "id"       : hum['id'],
+            "pin"      : hum['sense_pin'],
+            "humidity" : get_last_hum_from_db()
+        }
+        humiditys_state.append(hum_state)
+    return humiditys_state
+
+def get_last_temp_from_db():
+    q = 'select temperature from temperatures order by id desc limit 1;'
+    t = query_db(q)
+    val = t[0]['temperature']
+    return val
+    
+
 
 @app.route('/')
 def mainpage(name=None):
-    return render_template('index.html', currtemp=get_temperature(),
-                           currtime=get_time(), lights=get_lights_info())
+    return render_template('index.html', currstate=build_current_state())
 
 @app.route('/light', methods=['GET', 'POST'])
 def light():
     if 'pin' in request.form:
         pin = int(request.form['pin'])
         toggle_pin(pin)
-    else:
-        for i,_ in enumerate(lights):
-            on_times[i] = request.form['autoon_'+str(i)]
-            off_times[i] = request.form['autooff_'+str(i)]
     return mainpage()
 
+def sighandler(signum, frame):
+    logging.warning("Received signal " + str(signum) + ", shutting down")
+    if worker_thread is not None:
+        worker_thread.cancel()
+    cleanup_pi()
+    os._exit(0)
 
 def periodic_work():
-    now = datetime.datetime.now().time()
+    logging.info("Periodic worker worke up")
     with app.app_context():
 
         # toggle the lights if we need to
         for light in query_db('select * from lights'):
+            now = datetime.datetime.now()
             on = datetime.datetime.strptime(light['auto_on'], '%H:%M').time()
             off = datetime.datetime.strptime(light['auto_off'], '%H:%M').time()
             should_be_on = False
-            if on < off:
-                should_be_on = ((on < now) and (now < off))
-            elif off > on:
-                should_be_on = ((now < off) or (on < now))
+            if on < off:   should_be_on = ((on < now) and (now < off))
+            elif off > on: should_be_on = ((now < off) or (on < now))
             pin_should_be = (should_be_on != bool(light['high_active']))
             toggle_pin = bool(get_pin_state(light['pin'])) != pin_should_be
             if toggle_pin:
+                logging.info("Toggling light pin " + light['pin'])
                 toggle_pin(light['pin'])
 
         # insert the temperature into the database
@@ -158,14 +218,14 @@ def periodic_work():
         # read the humidity sensor and put the value into the database
         # TODO
 
-    # TODO make this exit cleanly on sig kill
-    threading.Timer(10, periodic_work).start()
+    worker_thread = threading.Timer(10, periodic_work).start()
 
-periodic_work()
 
 
 
 if __name__ == "__main__":
     initialize_pi()
+    periodic_work()
+    signal.signal(signal.SIGINT, sighandler)
     app.run('0.0.0.0')
     cleanup_pi()

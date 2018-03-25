@@ -3,7 +3,8 @@ DROP TABLE IF EXISTS temperature_sensors;
 DROP TABLE IF EXISTS temperatures;
 DROP TABLE IF EXISTS fans;
 DROP TABLE IF EXISTS fan_config;
-
+DROP TABLE IF EXISTS humidities;
+DROP TABLE IF EXISTS humidity_sensors;
 
 
 CREATE TABLE lights (
@@ -19,6 +20,21 @@ CREATE TABLE temperature_sensors(
 	id INTEGER PRIMARY KEY NOT NULL UNIQUE,
 	fpath TEXT,
 	description TEXT
+);
+
+CREATE TABLE humidity_sensors(
+	id INTEGER PRIMARY KEY NOT NULL UNIQUE,
+	power_pin INTEGER,
+	sense_pin INTEGER,
+	description TEXT
+);
+
+CREATE TABLE humidities(
+	id INTEGER PRIMARY KEY NOT NULL UNIQUE,
+	sensor_id INTEGER,
+	time TEXT,
+	humidity REAL,
+	FOREIGN KEY(sensor_id) REFERENCES humidity_sensors(id)
 );
 
 CREATE TABLE temperatures(
@@ -38,9 +54,11 @@ CREATE TABLE fans(
 CREATE TABLE fan_config(
 	id INTEGER PRIMARY KEY,
 	fan_id INTEGER,
-	temp_thres REAL,
+	temp_thresh REAL,
+	thresh_sensor INTEGER,
 	hourly_time INTEGER,
 	FOREIGN KEY(fan_id) REFERENCES fans(id)
+	FOREIGN KEY(thresh_sensor) REFERENCES temperature_sensors(id)
 );
 
 
@@ -59,7 +77,7 @@ INSERT INTO temperature_sensors (id, fpath, description)
 INSERT INTO fans (id, pin, description) VALUES (1, 20, "Intake fan");
 INSERT INTO fans (id, pin, description) VALUES (2, 21, "Exhaust fan");
 
-INSERT INTO fan_config (id, fan_id, temp_thres, thresh_sensor, hourly_time)
+INSERT INTO fan_config (id, fan_id, temp_thresh, thresh_sensor, hourly_time)
        VALUES (1, 1, 28.0, 1, 10);
-INSERT INTO fan_config (id, fan_id, temp_thres, thresh_sensor, hourly_time)
-       VALUES (1, 2, 28.0, 1, 10);
+INSERT INTO fan_config (id, fan_id, temp_thresh, thresh_sensor, hourly_time)
+       VALUES (2, 2, 28.0, 1, 10);

@@ -1,40 +1,60 @@
 <html>
     <head>
+		<link rel="stylesheet" href="{{ url_for('static', filename="style.css") }}">
         <title> Tiola Plant Management</title>
     </head>
-    <div style="background-color:black; height:100px">
-    </div>
     <body>
-        Current Time: {{currtime}} <br />
-        Current Temperature: {{currtemp}} <br />
+    <div id="statusbox">
+		<div class="statusbox_group">
+        {% for light in currstate.lights %}
+			<div class="statusbox_elem">
+            {% if light.on %}
+                <img src="{{ url_for('static', filename="light_on.png") }}">
+				<br />
+				On
+            {% else %}
+                <img src="{{ url_for('static', filename="light_off.png") }}">
+				<br />
+				Off
+            {% endif %}
+			</div>
+        {% endfor %}
+		</div>
+		<div class="statusbox_group">
+        {% for fan in currstate.fans %}
+			<div class="statusbox_elem">
+            {% if fan.on %}
+                <img src="{{ url_for('static', filename="fan_on.png") }}">
+				<br />
+				On
+            {% else %}
+                <img src="{{ url_for('static', filename="fan_off.png") }}">
+				<br />
+				Off
+            {% endif %}
+			</div>
+        {% endfor %}
+		</div>
+		<div class="statusbox_group">
+       	{% for ts in currstate.temperatures %}
+	   		<div class="statusbox_elem">	
+                <img src="{{ url_for('static', filename="temp.png") }}">
+				<br />
+				{{ ts.temp }} C
+			</div>
+        {% endfor %}
+		</div>
+		<div class="statusbox_group">
+       	{% for humidity in currstate.humidities %}
+	   		<div class="statusbox_elem">
+                <img src="{{ url_for('static', filename="humidity.png") }}">
+				<br />
+				{{ humidity.humidity }}
+			</div>
+        {% endfor %}
+		</div>
+	</div>
 
-        <form action="/light" method="post">
-            <table>
-                <tr>
-                    <th>On/Off</th>
-                    <th>Auto-On</th>
-                    <th>Auto-Off</th>
-                </tr>
-                {% for light in lights %}
-                <tr>
-                    <td>
-                    <button type=submit name=pin value={{light.pin}}>
-                        {% if light.state %}
-                            <img height="100" src="{{ url_for('static', filename="light_off.png") }}">
-                        {% else %}
-                            <img height="100" src="{{ url_for('static', filename="light_on.png") }}">
-                        {% endif %}
-                        </button>
-                    </td>
-                    <td>
-                        <input onChange="this.form.submit()" type="time" name="autoon_{{light.index}}" value="{{light.on_time}}">
-                    </td>
-                    <td>
-                        <input onChange="this.form.submit()" type="time" name="autooff_{{light.index}}" value="{{light.off_time}}">
-                    </td>
-                {% endfor %}
-            </table>
-        </form>
     </body>
 </html>
 
