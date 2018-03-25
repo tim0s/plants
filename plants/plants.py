@@ -1,4 +1,4 @@
-__emulation_mode__ = True
+__emulation_mode__ = False
 
 import os
 import re
@@ -91,9 +91,16 @@ def toggle_pin(pin):
 
 def initialize_pi():
     if not __emulation_mode__:
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(lights, GPIO.OUT)
-        GPIO.output(lights, GPIO.LOW)
+        with app.app_context():
+            GPIO.setmode(GPIO.BCM)
+            lights = build_lights_state(assume_off=True)
+            for l in lights:
+                GPIO.setup( l['pin'], GPIO.OUT)
+                GPIO.output(l['pin'], GPIO.LOW)
+            fans = build_fans_state(assume_off=True)
+            for f in fans:
+                GPIO.setup( f['pin'], GPIO.OUT)
+                GPIO.output(f['pin'], GPIO.LOW)
 
 def cleanup_pi():
     if not __emulation_mode__:
@@ -112,13 +119,18 @@ def build_current_state():
     }
     return state
 
-def build_lights_state():
+def build_lights_state(assume_off=False):
+    # Use assume_off=True to avoid interaction with HW, i.e., to just get the
+    # pins during setup.
     lights_state = []
     for light in query_db('select * from lights'):
+        on = False
+        if assume_off == False:
+            on = bool(get_pin_state(light['pin'])) and \
+                 bool(light['high_active'])
         light_state = {
             "id"      : light['id'],
-            "on"      : bool(get_pin_state(light['pin'])) and \
-                        bool(light['high_active']),
+            "on"      : on, 
             "pin"     : light['pin'],
             "auto_on" : light['auto_on'],
             "auto_off": light['auto_off']
@@ -126,12 +138,15 @@ def build_lights_state():
         lights_state.append(light_state)
     return lights_state
 
-def build_fans_state():
+def build_fans_state(assume_off=False):
     fans_state = []
     for fan in query_db('select * from fans'):
+        on = False
+        if assume_off == False:
+            on = bool(get_pin_state(fan['pin']))
         fan_state = {
             "id"      : fan['id'],
-            "on"      : bool(get_pin_state(fan['pin'])),
+            "on"      : on,
             "pin"     : fan['pin']
         }
         fans_state.append(fan_state)
