@@ -95,8 +95,11 @@ def initialize_pi():
             GPIO.setmode(GPIO.BCM)
             lights = build_lights_state(assume_off=True)
             for l in lights:
+                initial_state = GPIO.HIGH
+                if l['high_active']:
+                    initial_state = GPIO.LOW
                 GPIO.setup( l['pin'], GPIO.OUT)
-                GPIO.output(l['pin'], GPIO.LOW)
+                GPIO.output(l['pin'], initial_state)
             fans = build_fans_state(assume_off=True)
             for f in fans:
                 GPIO.setup( f['pin'], GPIO.OUT)
@@ -126,14 +129,15 @@ def build_lights_state(assume_off=False):
     for light in query_db('select * from lights'):
         on = False
         if assume_off == False:
-            on = bool(get_pin_state(light['pin'])) and \
+            on = bool(get_pin_state(light['pin'])) == \
                  bool(light['high_active'])
         light_state = {
-            "id"      : light['id'],
-            "on"      : on, 
-            "pin"     : light['pin'],
-            "auto_on" : light['auto_on'],
-            "auto_off": light['auto_off']
+            "id"          : light['id'],
+            "on"          : on, 
+            "pin"         : light['pin'],
+            "high_active" : light['high_active'],
+            "auto_on"     : light['auto_on'],
+            "auto_off"    : light['auto_off']
         }
         lights_state.append(light_state)
     return lights_state
@@ -143,7 +147,7 @@ def build_fans_state(assume_off=False):
     for fan in query_db('select * from fans'):
         on = False
         if assume_off == False:
-            on = bool(get_pin_state(fan['pin']))
+            on = bool(get_pin_state(fan['pin'])) 
         fan_state = {
             "id"      : fan['id'],
             "on"      : on,
@@ -207,16 +211,17 @@ def periodic_work():
 
         # toggle the lights if we need to
         for light in query_db('select * from lights'):
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().time()
             on = datetime.datetime.strptime(light['auto_on'], '%H:%M').time()
             off = datetime.datetime.strptime(light['auto_off'], '%H:%M').time()
             should_be_on = False
-            if on < off:   should_be_on = ((on < now) and (now < off))
-            elif off > on: should_be_on = ((now < off) or (on < now))
-            pin_should_be = (should_be_on != bool(light['high_active']))
-            toggle_pin = bool(get_pin_state(light['pin'])) != pin_should_be
-            if toggle_pin:
-                logging.info("Toggling light pin " + light['pin'])
+            if on < off:
+                should_be_on = ((on < now) and (now < off))
+            elif on > off:
+                should_be_on = ((now < off) or (now > on))
+            pin_should_be = (should_be_on == bool(light['high_active']))
+            if bool(get_pin_state(light['pin'])) != pin_should_be:
+                logging.info("Toggling light pin " + str(light['pin']))
                 toggle_pin(light['pin'])
 
         # insert the temperature into the database
