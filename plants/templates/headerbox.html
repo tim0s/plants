@@ -1,0 +1,51 @@
+    <div id="statusbox">
+		<div class="statusbox_group">
+        {% for light in currstate.lights %}
+			<div class="statusbox_elem">
+            {% if light.on %}
+                <img src="{{ url_for('static', filename="light_on.png") }}">
+				<br />
+				On
+            {% else %}
+                <img src="{{ url_for('static', filename="light_off.png") }}">
+				<br />
+				Off
+            {% endif %}
+			</div>
+        {% endfor %}
+		</div>
+		<div class="statusbox_group">
+        {% for fan in currstate.fans %}
+			<div class="statusbox_elem">
+            {% if fan.on %}
+                <img src="{{ url_for('static', filename="fan_on.png") }}">
+				<br />
+				On
+            {% else %}
+                <img src="{{ url_for('static', filename="fan_off.png") }}">
+				<br />
+				Off
+            {% endif %}
+			</div>
+        {% endfor %}
+		</div>
+		<div class="statusbox_group">
+       	{% for ts in currstate.temperatures %}
+	   		<div class="statusbox_elem">	
+                <img src="{{ url_for('static', filename="temp.png") }}">
+				<br />
+				{{ ts.temp }} C
+			</div>
+        {% endfor %}
+		</div>
+		<div class="statusbox_group">
+       	{% for humidity in currstate.humidities %}
+	   		<div class="statusbox_elem">
+                <img src="{{ url_for('static', filename="humidity.png") }}">
+				<br />
+				{{ humidity.humidity }}
+			</div>
+        {% endfor %}
+		</div>
+	</div>
+
