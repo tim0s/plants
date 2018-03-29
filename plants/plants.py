@@ -1,5 +1,4 @@
 __emulation_mode__ = False
-
 import os
 import re
 import time
@@ -8,7 +7,12 @@ import sqlite3
 import logging
 import datetime
 import time, threading
-if not __emulation_mode__: import RPi.GPIO as GPIO
+
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    __emulation_mode__ = True
+
 from flask import Flask, g, request, url_for, render_template
 
 app = Flask(__name__)
@@ -87,7 +91,8 @@ def get_pin_state(pin):
         return GPIO.input(pin)
 
 def toggle_pin(pin):
-    GPIO.output(pin, not GPIO.input(pin))
+    if __emulation_mode__ != True:
+        GPIO.output(pin, not GPIO.input(pin))
 
 def initialize_pi():
     if not __emulation_mode__:
