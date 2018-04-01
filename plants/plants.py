@@ -79,7 +79,8 @@ def get_temperature(fpath):
         m = re.search("t=(\d+)", contents)
         if m is not None:
             result = m.group(1)
-            return int(result)/1000
+            result = int(result)/1000
+            return round(result, 1)
 
 
 def get_time():
@@ -255,8 +256,10 @@ def periodic_work():
         for sensor in query_db('select * from temperature_sensors'):
             fname = sensor['fpath']
             temp = float(get_temperature(fname))
-            insert_db("temperatures", ("sensor_id", "time", "temperature"),
-                     (sensor['id'], str(datetime.datetime.now()), temp))
+            last_temp = get_last_temp_from_db(sensor['id'])
+            if temp != last_temp:
+                insert_db("temperatures", ("sensor_id", "time", "temperature"),
+                         (sensor['id'], str(datetime.datetime.now()), temp))
 
         # turn on the fan (based on an hourly schedule) or if the temperature
         # is above a certain threshold

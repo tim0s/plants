@@ -78,6 +78,6 @@ INSERT INTO fans (id, pin, description) VALUES (1, 20, "Intake fan");
 INSERT INTO fans (id, pin, description) VALUES (2, 21, "Exhaust fan");
 
 INSERT INTO fan_config (id, fan_id, temp_thresh, thresh_sensor, hourly_time)
-       VALUES (1, 1, 28.0, 1, 10);
+       VALUES (1, 1, 27.0, 1, 15);
 INSERT INTO fan_config (id, fan_id, temp_thresh, thresh_sensor, hourly_time)
-       VALUES (2, 2, 28.0, 1, 10);
+       VALUES (2, 2, 27.0, 1, 15);
