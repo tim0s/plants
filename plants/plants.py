@@ -7,6 +7,7 @@ import sqlite3
 import logging
 import datetime
 import time, threading
+import random
 
 try:
     import RPi.GPIO as GPIO
@@ -78,7 +79,8 @@ def get_temperature(fpath):
         m = re.search("t=(\d+)", contents)
         if m is not None:
             result = m.group(1)
-            return int(result)/1000
+            result = int(result)/1000
+            return round(result, 1)
 
 
 def get_time():
@@ -167,7 +169,7 @@ def build_temperature_state():
         temp_state = {
             "id"    : temp['id'],
             "fpath" : temp['fpath'],
-            "temp"  : get_last_temp_from_db()
+            "temp"  : get_last_temp_from_db(int(temp['id']))
         }
         temps_state.append(temp_state)
     return temps_state
@@ -184,13 +186,34 @@ def build_humidity_state():
         humiditys_state.append(hum_state)
     return humiditys_state
 
-def get_last_temp_from_db():
-    q = 'select temperature from temperatures order by id desc limit 1;'
+def get_last_temp_from_db(sensor_id):
+    q = "select temperature from temperatures where sensor_id=" + \
+           str(sensor_id)+ " order by id desc limit 1;"
     t = query_db(q)
     val = t[0]['temperature']
     return val
-    
 
+def one_with_prob(probability):
+    r = random.random()
+    if r <= probability:
+        return 1
+    return 0
+
+def should_fan_be_on(fan_id):
+    q = "select * from fan_config where fan_id = " + str(fan_id) + ";"
+    fc = query_db(q)
+    for c in fc:
+        thresh = float(c['temp_thresh'])
+        hourly = float(c['hourly_time'])
+        temp = get_last_temp_from_db(int(c['thresh_sensor']))
+        p1 = hourly / 60.0
+        if one_with_prob(p1): return True
+        delta = thresh - temp
+        p2 = -delta + 1
+        if delta <= 0: p2 = 1.0
+        elif delta >= 1: p2 = 0.0
+        if one_with_prob(p2): return True
+    return False
 
 @app.route('/')
 def mainpage(name=None):
@@ -233,12 +256,16 @@ def periodic_work():
         for sensor in query_db('select * from temperature_sensors'):
             fname = sensor['fpath']
             temp = float(get_temperature(fname))
-            insert_db("temperatures", ("sensor_id", "time", "temperature"),
-                     (sensor['id'], str(datetime.datetime.now()), temp))
+            last_temp = get_last_temp_from_db(sensor['id'])
+            if temp != last_temp:
+                insert_db("temperatures", ("sensor_id", "time", "temperature"),
+                         (sensor['id'], str(datetime.datetime.now()), temp))
 
         # turn on the fan (based on an hourly schedule) or if the temperature
         # is above a certain threshold
-        # TODO
+        for fan in query_db('select * from fans'):
+            if should_fan_be_on(fan['id']) != bool(get_pin_state(fan['pin'])):
+                toggle_pin(fan['pin'])
 
         # read the humidity sensor and put the value into the database
         # TODO
